@@ -1367,3 +1367,1410 @@ setCompareIndicator("Orig / Proc: not running", "idle");
 </script>
 </body>
 </html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<!--
+
+ 2 versio joka ottaa Githubista testiksi WAV filen. 
+
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Astronaut Voice Distortion Pro</title>
+  <style>
+    :root {
+      --bg: #f7f4ef;
+      --card: #fffdf8;
+      --text: #1f2937;
+      --muted: #6b7280;
+      --accent: #0f766e;
+      --accent-hover: #115e59;
+      --line: #e5e7eb;
+      --good: #166534;
+      --bad: #991b1b;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: "Segoe UI", Tahoma, sans-serif;
+      color: var(--text);
+      background: var(--bg);
+      min-height: 100vh;
+      padding: 24px;
+    }
+
+    .app {
+      width: min(1400px, 100%);
+      margin: 0 auto;
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 20px;
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.07);
+    }
+
+    h1 { margin: 0 0 8px; font-size: 1.6rem; }
+    p { margin: 0 0 16px; color: var(--muted); line-height: 1.5; }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 460px 1fr;
+      gap: 16px;
+    }
+
+    @media (max-width: 1080px) {
+      .grid { grid-template-columns: 1fr; }
+    }
+
+    .panel {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 16px;
+      background: white;
+    }
+
+    .row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    @media (max-width: 560px) {
+      .row { grid-template-columns: 1fr; }
+    }
+
+    label {
+      display: block;
+      font-size: 0.92rem;
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+
+    input, select {
+      width: 100%;
+      padding: 10px 12px;
+      border-radius: 10px;
+      border: 1px solid var(--line);
+      font-size: 1rem;
+      background: white;
+    }
+
+    input[type="range"] { padding: 0; }
+
+    .range-value {
+      font-size: 0.9rem;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+
+    .buttons {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 12px;
+    }
+
+    button {
+      border: 0;
+      border-radius: 10px;
+      padding: 10px 14px;
+      background: var(--accent);
+      color: white;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    button:hover { background: var(--accent-hover); }
+    button.secondary { background: #374151; }
+    button.secondary:hover { background: #111827; }
+
+    .status {
+      margin-top: 12px;
+      font-weight: 600;
+    }
+
+    .good { color: var(--good); }
+    .bad { color: var(--bad); }
+
+    .small {
+      font-size: 0.9rem;
+      color: var(--muted);
+      margin-top: 8px;
+      white-space: pre-wrap;
+    }
+
+    audio {
+      width: 100%;
+      margin-top: 10px;
+    }
+
+    .visuals {
+      display: grid;
+      gap: 16px;
+    }
+
+    canvas {
+      width: 100%;
+      height: 220px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: #0b1020;
+      display: block;
+    }
+
+    .canvas-title {
+      margin: 0 0 8px;
+      font-weight: 700;
+    }
+
+    pre {
+      white-space: pre-wrap;
+      word-break: break-word;
+      background: #f9fafb;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 12px;
+      margin: 0;
+      overflow: auto;
+      min-height: 180px;
+    }
+
+    .metrics {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      margin-top: 12px;
+    }
+
+    @media (max-width: 700px) {
+      .metrics { grid-template-columns: 1fr 1fr; }
+    }
+
+    .metric {
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 10px;
+      background: #fafafa;
+    }
+
+    .metric .label {
+      font-size: 0.82rem;
+      color: var(--muted);
+      margin-bottom: 4px;
+    }
+
+    .metric .value {
+      font-size: 1.05rem;
+      font-weight: 700;
+    }
+
+    .compare-box {
+      margin-top: 12px;
+      padding: 12px;
+      border: 1px dashed var(--line);
+      border-radius: 10px;
+      background: #fcfcfd;
+    }
+
+    .compare-title {
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .compare-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 9px;
+      border-radius: 999px;
+      font-size: 0.88rem;
+      font-weight: 700;
+      line-height: 1;
+      border: 1px solid transparent;
+      transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+      min-height: 24px;
+    }
+
+    .compare-dot {
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      display: inline-block;
+      background: currentColor;
+      opacity: 0.35;
+      flex: 0 0 auto;
+      box-shadow: 0 0 0 1px currentColor;
+    }
+
+    .compare-badge.idle {
+      background: #f3f4f6;
+      color: #374151;
+      border-color: #d1d5db;
+    }
+
+    .compare-badge.active-original {
+      background: #dbeafe;
+      color: #1d4ed8;
+      border-color: #93c5fd;
+      animation: badgePulseBlue 1.1s ease-in-out infinite;
+    }
+
+    .compare-badge.active-original .compare-dot {
+      background: #1d4ed8;
+      animation: dotBlinkBlue 1s ease-in-out infinite;
+    }
+
+    .compare-badge.active-processed {
+      background: #fce7f3;
+      color: #be185d;
+      border-color: #f9a8d4;
+      animation: badgePulsePink 1.1s ease-in-out infinite;
+    }
+
+    .compare-badge.active-processed .compare-dot {
+      background: #be185d;
+      animation: dotBlinkPink 1s ease-in-out infinite;
+    }
+
+    .compare-badge.paused {
+      background: #fef3c7;
+      color: #92400e;
+      border-color: #fcd34d;
+    }
+
+    .compare-badge.paused .compare-dot {
+      background: #92400e;
+      opacity: 0.8;
+    }
+
+    .compare-badge.error {
+      background: #fee2e2;
+      color: #b91c1c;
+      border-color: #fca5a5;
+    }
+
+    .compare-badge.error .compare-dot {
+      background: #b91c1c;
+      opacity: 0.9;
+    }
+
+    @keyframes badgePulseBlue {
+      0%, 100% {
+        transform: scale(1);
+        box-shadow: 0 0 0 0 rgba(29, 78, 216, 0.18);
+      }
+      50% {
+        transform: scale(1.04);
+        box-shadow: 0 0 0 8px rgba(29, 78, 216, 0);
+      }
+    }
+
+    @keyframes badgePulsePink {
+      0%, 100% {
+        transform: scale(1);
+        box-shadow: 0 0 0 0 rgba(190, 24, 93, 0.18);
+      }
+      50% {
+        transform: scale(1.04);
+        box-shadow: 0 0 0 8px rgba(190, 24, 93, 0);
+      }
+    }
+
+    @keyframes dotBlinkBlue {
+      0%, 100% { opacity: 0.25; transform: scale(0.9); }
+      50% { opacity: 1; transform: scale(1.15); }
+    }
+
+    @keyframes dotBlinkPink {
+      0%, 100% { opacity: 0.25; transform: scale(0.9); }
+      50% { opacity: 1; transform: scale(1.15); }
+    }
+  </style>
+</head>
+<body>
+<main class="app">
+  <h1>Astronaut Voice Distortion Pro</h1>
+  <p>
+    Load an audio file, see live parameters, auto-process on slider changes,
+    compare original and processed audio, and auto-generate WAV output.
+  </p>
+
+  <div class="grid">
+    <section class="panel">
+      <div class="row">
+        <div>
+          <label for="fileInput">Audio file</label>
+          <input id="fileInput" type="file" accept="audio/*" />
+        </div>
+        <div>
+          <label for="modelSelect">Model</label>
+          <select id="modelSelect">
+            <option value="1">1: Mercury</option>
+            <option value="2">2: Apollo</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="row">
+        <div>
+          <label for="typeSelect">Type</label>
+          <select id="typeSelect">
+            <option value="1">1: 2-sided sigmoid</option>
+            <option value="2">2: 1-sided sigmoid</option>
+            <option value="3">3: 1-sided k-root</option>
+            <option value="4">4: carbon microphone</option>
+          </select>
+        </div>
+        <div>
+          <label for="channelMode">Stereo mode</label>
+          <select id="channelMode">
+            <option value="mono">Mono mix</option>
+            <option value="stereo">Stereo preserve</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="row">
+        <div>
+          <label for="kRange">k</label>
+          <input id="kRange" type="range" min="0" max="1" step="0.01" value="0.30" />
+          <div class="range-value" id="kValue">0.30</div>
+        </div>
+        <div>
+          <label for="snRange">sn — speech noise</label>
+          <input id="snRange" type="range" min="0" max="1" step="0.01" value="0.70" />
+          <div class="range-value" id="snValue">0.70</div>
+        </div>
+      </div>
+
+      <div class="row">
+        <div>
+          <label for="bnRange">bn — background noise</label>
+          <input id="bnRange" type="range" min="0" max="1" step="0.01" value="0.20" />
+          <div class="range-value" id="bnValue">0.20</div>
+        </div>
+        <div>
+          <label for="outputGain">Output gain</label>
+          <input id="outputGain" type="range" min="0.1" max="2" step="0.01" value="1.00" />
+          <div class="range-value" id="outputGainValue">1.00</div>
+        </div>
+      </div>
+
+      <div class="buttons">
+        <button id="processBtn">Process</button>
+        <button id="playOriginalBtn" class="secondary">Play original</button>
+        <button id="playProcessedBtn" class="secondary">Play processed</button>
+        <button id="compareBtn" class="secondary">Compare</button>
+        <button id="downloadBtn" class="secondary">Download WAV</button>
+      </div>
+
+      <div id="statusText" class="status">Ready.</div>
+      <div id="infoText" class="small">No file loaded.</div>
+
+      <div class="metrics">
+        <div class="metric">
+          <div class="label">Original RMS</div>
+          <div class="value" id="origRms">—</div>
+        </div>
+        <div class="metric">
+          <div class="label">Processed RMS</div>
+          <div class="value" id="procRms">—</div>
+        </div>
+        <div class="metric">
+          <div class="label">Original Peak</div>
+          <div class="value" id="origPeak">—</div>
+        </div>
+        <div class="metric">
+          <div class="label">Processed Peak</div>
+          <div class="value" id="procPeak">—</div>
+        </div>
+      </div>
+
+      <div class="compare-box">
+        <div class="compare-title">Model parameters</div>
+        <div id="modelParams" class="small">Select a model to see parameters.</div>
+      </div>
+
+      <div class="compare-box">
+        <div class="compare-title">Compare mode</div>
+        <div id="compareIndicator" class="compare-badge idle">
+          <span class="compare-dot" aria-hidden="true"></span>
+          <span class="compare-label">Orig / Proc: not running</span>
+        </div>
+      </div>
+
+      <div class="compare-box">
+        <div class="compare-title">GitHub WAV test</div>
+        <audio controls preload="auto"
+          src="https://raw.githubusercontent.com/tomrailio/Astronaut-voice-distortion-Pro/main/sounds-of-mars-one-small-step-earth.wav">
+        </audio>
+        <div class="small">
+          Direct GitHub raw WAV source for browser playback testing.
+        </div>
+      </div>
+
+      <audio id="player" controls></audio>
+
+      <div class="small">
+        Auto-save: the processed WAV is generated automatically after each processing run.
+      </div>
+    </section>
+
+    <section class="visuals">
+      <div class="panel">
+        <div class="canvas-title">Waveform: original</div>
+        <canvas id="waveOriginal" width="900" height="220"></canvas>
+      </div>
+
+      <div class="panel">
+        <div class="canvas-title">Waveform: processed</div>
+        <canvas id="waveProcessed" width="900" height="220"></canvas>
+      </div>
+
+      <div class="panel">
+        <div class="canvas-title">Spectrogram: original</div>
+        <canvas id="specOriginal" width="900" height="220"></canvas>
+      </div>
+
+      <div class="panel">
+        <div class="canvas-title">Spectrogram: processed</div>
+        <canvas id="specProcessed" width="900" height="220"></canvas>
+      </div>
+
+      <div class="panel">
+        <h2 style="margin-top: 0;">Output</h2>
+        <pre id="log">Load an audio file to begin.</pre>
+      </div>
+    </section>
+  </div>
+</main>
+
+<script>
+const fileInput = document.getElementById("fileInput");
+const modelSelect = document.getElementById("modelSelect");
+const typeSelect = document.getElementById("typeSelect");
+const channelMode = document.getElementById("channelMode");
+const kRange = document.getElementById("kRange");
+const snRange = document.getElementById("snRange");
+const bnRange = document.getElementById("bnRange");
+const outputGain = document.getElementById("outputGain");
+
+const kValue = document.getElementById("kValue");
+const snValue = document.getElementById("snValue");
+const bnValue = document.getElementById("bnValue");
+const outputGainValue = document.getElementById("outputGainValue");
+
+const processBtn = document.getElementById("processBtn");
+const playOriginalBtn = document.getElementById("playOriginalBtn");
+const playProcessedBtn = document.getElementById("playProcessedBtn");
+const compareBtn = document.getElementById("compareBtn");
+const downloadBtn = document.getElementById("downloadBtn");
+const statusText = document.getElementById("statusText");
+const infoText = document.getElementById("infoText");
+const log = document.getElementById("log");
+const player = document.getElementById("player");
+const compareIndicator = document.getElementById("compareIndicator");
+
+const waveOriginal = document.getElementById("waveOriginal");
+const waveProcessed = document.getElementById("waveProcessed");
+const specOriginal = document.getElementById("specOriginal");
+const specProcessed = document.getElementById("specProcessed");
+
+const origRmsEl = document.getElementById("origRms");
+const procRmsEl = document.getElementById("procRms");
+const origPeakEl = document.getElementById("origPeak");
+const procPeakEl = document.getElementById("procPeak");
+const modelParams = document.getElementById("modelParams");
+
+let audioContext = null;
+let originalBuffer = null;
+let processedBuffer = null;
+let originalUrl = null;
+let processedUrl = null;
+let compareTimer = null;
+let compareState = 0;
+let autoProcessTimer = null;
+let lastProcessedSignature = "";
+let originalFileName = "astronaut_processed";
+
+function clamp(v, min, max) {
+  return Math.max(min, Math.min(max, v));
+}
+
+function rms(data) {
+  let sum = 0;
+  for (let i = 0; i < data.length; i++) sum += data[i] * data[i];
+  return Math.sqrt(sum / Math.max(1, data.length));
+}
+
+function peak(data) {
+  let m = 0;
+  for (let i = 0; i < data.length; i++) m = Math.max(m, Math.abs(data[i]));
+  return m;
+}
+
+function normalizeFloat32(data) {
+  const p = peak(data);
+  if (p < 1e-9) return new Float32Array(data);
+  const out = new Float32Array(data.length);
+  for (let i = 0; i < data.length; i++) out[i] = data[i] / p;
+  return out;
+}
+
+function biquadCoeffsPeaking(fc, dBgain, Q, fs) {
+  const A = Math.pow(10, dBgain / 40);
+  const w0 = 2 * Math.PI * fc / fs;
+  const alpha = Math.sin(w0) / (2 * Q);
+  const cosw0 = Math.cos(w0);
+
+  const b0 = 1 + alpha * A;
+  const b1 = -2 * cosw0;
+  const b2 = 1 - alpha * A;
+  const a0 = 1 + alpha / A;
+  const a1 = -2 * cosw0;
+  const a2 = 1 - alpha / A;
+
+  return { b0: b0 / a0, b1: b1 / a0, b2: b2 / a0, a1: a1 / a0, a2: a2 / a0 };
+}
+
+function biquadLowPass(fc, Q, fs) {
+  const w0 = 2 * Math.PI * fc / fs;
+  const alpha = Math.sin(w0) / (2 * Q);
+  const cosw0 = Math.cos(w0);
+  const a0 = 1 + alpha;
+
+  return {
+    b0: ((1 - cosw0) / 2) / a0,
+    b1: (1 - cosw0) / a0,
+    b2: ((1 - cosw0) / 2) / a0,
+    a1: (-2 * cosw0) / a0,
+    a2: (1 - alpha) / a0,
+  };
+}
+
+function biquadHighPass(fc, Q, fs) {
+  const w0 = 2 * Math.PI * fc / fs;
+  const alpha = Math.sin(w0) / (2 * Q);
+  const cosw0 = Math.cos(w0);
+  const a0 = 1 + alpha;
+
+  return {
+    b0: ((1 + cosw0) / 2) / a0,
+    b1: (-(1 + cosw0)) / a0,
+    b2: ((1 + cosw0) / 2) / a0,
+    a1: (-2 * cosw0) / a0,
+    a2: (1 - alpha) / a0,
+  };
+}
+
+function applyBiquad(input, c) {
+  const out = new Float32Array(input.length);
+  let x1 = 0, x2 = 0, y1 = 0, y2 = 0;
+
+  for (let i = 0; i < input.length; i++) {
+    const x0 = input[i];
+    const y0 = c.b0 * x0 + c.b1 * x1 + c.b2 * x2 - c.a1 * y1 - c.a2 * y2;
+    out[i] = y0;
+    x2 = x1; x1 = x0;
+    y2 = y1; y1 = y0;
+  }
+
+  return out;
+}
+
+function applyBiquadChain(input, filters) {
+  let out = input;
+  for (const f of filters) out = applyBiquad(out, f);
+  return out;
+}
+
+function onePoleLowPass(input, cutoff, fs) {
+  const out = new Float32Array(input.length);
+  const a = Math.exp(-2 * Math.PI * cutoff / fs);
+  const b = 1 - a;
+  let y = 0;
+  for (let i = 0; i < input.length; i++) {
+    y = b * input[i] + a * y;
+    out[i] = y;
+  }
+  return out;
+}
+
+function filtfiltLowPass(input, cutoff, fs) {
+  const forward = onePoleLowPass(input, cutoff, fs);
+  const reversed = new Float32Array(forward).reverse();
+  const backward = onePoleLowPass(reversed, cutoff, fs);
+  return new Float32Array(backward).reverse();
+}
+
+function generatePeriodicNoise(len, f, blend, fs) {
+  const T = Math.max(1, Math.round(fs / f));
+  const period = new Float32Array(T);
+  for (let i = 0; i < T; i++) period[i] = Math.random() - 0.5;
+
+  const repeated = new Float32Array(len);
+  for (let i = 0; i < len; i++) repeated[i] = period[i % T];
+
+  const filtered = applyBiquad(repeated, biquadLowPass(180, 0.7071, fs));
+  const out = new Float32Array(len);
+  for (let i = 0; i < len; i++) {
+    out[i] = blend * filtered[i] + (1 - blend) * (Math.random() - 0.5);
+  }
+  return normalizeFloat32(out);
+}
+
+function applyNonlinearity(input, type, k) {
+  const out = new Float32Array(input);
+
+  switch (type) {
+    case 1: {
+      const kk = k * 50 + 1;
+      const scale = 0.25 / Math.atan(kk);
+      for (let i = 0; i < out.length; i++) out[i] = scale * Math.atan(kk * out[i]);
+      break;
+    }
+    case 2: {
+      const kk = k * 100 + 1;
+      const scale = 0.25 / Math.atan(kk);
+      for (let i = 0; i < out.length; i++) {
+        if (out[i] > 0) out[i] = scale * Math.atan(kk * out[i]);
+      }
+      break;
+    }
+    case 3: {
+      const kk = k * 5 + 1;
+      for (let i = 0; i < out.length; i++) {
+        if (out[i] > 0) out[i] = Math.pow(out[i], 1 / kk);
+      }
+      break;
+    }
+    case 4: {
+      if (k > 0) {
+        for (let i = 0; i < out.length; i++) {
+          const x = out[i];
+          out[i] =
+            Math.pow(k, 4) * Math.pow(x, 5) +
+            Math.pow(k, 4) * Math.pow(x, 4) -
+            Math.pow(k, 3) * Math.pow(x, 4) -
+            Math.pow(k, 3) * Math.pow(x, 3) +
+            Math.pow(k, 2) * Math.pow(x, 3) +
+            Math.pow(k, 2) * Math.pow(x, 2) -
+            k * Math.pow(x, 2) -
+            k * x +
+            x;
+        }
+      }
+      break;
+    }
+  }
+
+  return normalizeFloat32(out);
+}
+
+function getModelConfig(model, fs) {
+  if (model <= 1) {
+    return {
+      pre: [
+        biquadCoeffsPeaking(290, -18, 0.7, fs),
+        biquadCoeffsPeaking(1400, 18, 1.2, fs),
+      ],
+      postMid: biquadCoeffsPeaking(800, -12, 1.2, fs),
+      hp: biquadHighPass(600, 0.7071, fs),
+      lp: biquadLowPass(3800, 0.7071, fs),
+      humFreq: 814,
+      humBlend: 0.95,
+      name: "Mercury",
+      description: [
+        "Pre-EQ: 290 Hz / -18 dB / Q=0.7",
+        "Pre-EQ: 1400 Hz / +18 dB / Q=1.2",
+        "Post-EQ: 800 Hz / -12 dB / Q=1.2",
+        "HPF: 600 Hz",
+        "LPF: 3800 Hz",
+        "Hum: 814 Hz, blend 0.95"
+      ]
+    };
+  }
+
+  return {
+    pre: [
+      biquadCoeffsPeaking(90, -16, 0.8, fs),
+      biquadCoeffsPeaking(950, 3, 1.0, fs),
+    ],
+    postMid: biquadCoeffsPeaking(3800, 11, 16, fs),
+    hp: biquadHighPass(55, 0.7071, fs),
+    lp: biquadLowPass(2200, 0.7071, fs),
+    humFreq: 57.5,
+    humBlend: 0.96,
+    name: "Apollo",
+    description: [
+      "Pre-EQ: 90 Hz / -16 dB / Q=0.8",
+      "Pre-EQ: 950 Hz / +3 dB / Q=1.0",
+      "Post-EQ: 3800 Hz / +11 dB / Q=16",
+      "HPF: 55 Hz",
+      "LPF: 2200 Hz",
+      "Hum: 57.5 Hz, blend 0.96"
+    ]
+  };
+}
+
+function addSpeechModulatedNoise(signal, fs, sn) {
+  const env = filtfiltLowPass(Float32Array.from(signal, Math.abs), 1400, fs);
+  const noise = new Float32Array(signal.length);
+  for (let i = 0; i < noise.length; i++) noise[i] = 2 * Math.random() - 1;
+
+  const bandFiltered = applyBiquad(noise, biquadHighPass(500, 0.7071, fs));
+  const bp = new Float32Array(signal.length);
+  for (let i = 0; i < signal.length; i++) bp[i] = env[i] * bandFiltered[i];
+  const bpNorm = normalizeFloat32(bp);
+
+  const out = new Float32Array(signal.length);
+  for (let i = 0; i < signal.length; i++) out[i] = signal[i] + sn * bpNorm[i];
+  return out;
+}
+
+function addBackgroundNoise(signal, fs, model, bn) {
+  const meta = getModelConfig(model, fs);
+  const hum = generatePeriodicNoise(signal.length, meta.humFreq, meta.humBlend, fs);
+  const out = new Float32Array(signal.length);
+  for (let i = 0; i < signal.length; i++) out[i] = signal[i] + bn * hum[i];
+  return out;
+}
+
+function processMonophonic(input, fs, model, type, k, sn, bn) {
+  let out = normalizeFloat32(new Float32Array(input));
+  const meta = getModelConfig(model, fs);
+
+  out = applyBiquadChain(out, meta.pre);
+  out = applyNonlinearity(out, type, k);
+  out = addSpeechModulatedNoise(out, fs, sn);
+  out = addBackgroundNoise(out, fs, model, bn);
+  out = applyBiquadChain(out, [meta.postMid, meta.hp, meta.lp, meta.lp]);
+
+  return normalizeFloat32(out);
+}
+
+function processStereo(left, right, fs, model, type, k, sn, bn) {
+  return {
+    left: processMonophonic(left, fs, model, type, k, sn, bn),
+    right: processMonophonic(right, fs, model, type, k, sn, bn),
+  };
+}
+
+function audioBufferToMonoFloat32(audioBuffer) {
+  const channels = audioBuffer.numberOfChannels;
+  const len = audioBuffer.length;
+  const out = new Float32Array(len);
+
+  for (let ch = 0; ch < channels; ch++) {
+    const data = audioBuffer.getChannelData(ch);
+    for (let i = 0; i < len; i++) out[i] += data[i] / channels;
+  }
+
+  return out;
+}
+
+function audioBufferToChannels(audioBuffer) {
+  const channels = [];
+  for (let ch = 0; ch < audioBuffer.numberOfChannels; ch++) {
+    channels.push(new Float32Array(audioBuffer.getChannelData(ch)));
+  }
+  return channels;
+}
+
+function createBufferFromChannels(audioContext, sampleRate, channels) {
+  const buffer = audioContext.createBuffer(channels.length, channels[0].length, sampleRate);
+  for (let ch = 0; ch < channels.length; ch++) buffer.copyToChannel(channels[ch], ch);
+  return buffer;
+}
+
+function audioBufferToWavBlob(audioBuffer) {
+  const numChannels = audioBuffer.numberOfChannels;
+  const sampleRate = audioBuffer.sampleRate;
+  const length = audioBuffer.length;
+  const bytesPerSample = 2;
+  const dataSize = length * numChannels * bytesPerSample;
+  const buffer = new ArrayBuffer(44 + dataSize);
+  const view = new DataView(buffer);
+
+  function writeString(offset, string) {
+    for (let i = 0; i < string.length; i++) view.setUint8(offset + i, string.charCodeAt(i));
+  }
+
+  let offset = 0;
+  writeString(offset, "RIFF"); offset += 4;
+  view.setUint32(offset, 36 + dataSize, true); offset += 4;
+  writeString(offset, "WAVE"); offset += 4;
+  writeString(offset, "fmt "); offset += 4;
+  view.setUint32(offset, 16, true); offset += 4;
+  view.setUint16(offset, 1, true); offset += 2;
+  view.setUint16(offset, numChannels, true); offset += 2;
+  view.setUint32(offset, sampleRate, true); offset += 4;
+  view.setUint32(offset, sampleRate * numChannels * bytesPerSample, true); offset += 4;
+  view.setUint16(offset, numChannels * bytesPerSample, true); offset += 2;
+  view.setUint16(offset, 16, true); offset += 2;
+  writeString(offset, "data"); offset += 4;
+  view.setUint32(offset, dataSize, true); offset += 4;
+
+  const channelData = [];
+  for (let ch = 0; ch < numChannels; ch++) channelData.push(audioBuffer.getChannelData(ch));
+
+  for (let i = 0; i < length; i++) {
+    for (let ch = 0; ch < numChannels; ch++) {
+      const sample = clamp(channelData[ch][i], -1, 1);
+      view.setInt16(offset, sample < 0 ? sample * 0x8000 : sample * 0x7FFF, true);
+      offset += 2;
+    }
+  }
+
+  return new Blob([buffer], { type: "audio/wav" });
+}
+
+function dB(v) {
+  return 20 * Math.log10(Math.max(v, 1e-10));
+}
+
+function spectrogramColor(t) {
+  const r = Math.floor(255 * Math.pow(t, 1.2));
+  const g = Math.floor(255 * Math.pow(t, 0.75));
+  const b = Math.floor(255 * Math.pow(t, 0.35));
+  return `rgb(${r},${g},${b})`;
+}
+
+function reverseBits(x, bits) {
+  let y = 0;
+  for (let i = 0; i < bits; i++) {
+    y = (y << 1) | (x & 1);
+    x >>= 1;
+  }
+  return y;
+}
+
+function fftRadix2(re, im) {
+  const n = re.length;
+  const levels = Math.log2(n);
+  if (Math.floor(levels) !== levels) throw new Error("FFT length must be power of 2.");
+
+  for (let i = 0; i < n; i++) {
+    const j = reverseBits(i, levels);
+    if (j > i) {
+      [re[i], re[j]] = [re[j], re[i]];
+      [im[i], im[j]] = [im[j], im[i]];
+    }
+  }
+
+  for (let size = 2; size <= n; size <<= 1) {
+    const half = size >> 1;
+    const step = -2 * Math.PI / size;
+
+    for (let i = 0; i < n; i += size) {
+      for (let j = i, k = 0; j < i + half; j++, k++) {
+        const l = j + half;
+        const angle = step * k;
+        const cos = Math.cos(angle);
+        const sin = Math.sin(angle);
+
+        const tre = re[l] * cos - im[l] * sin;
+        const tim = re[l] * sin + im[l] * cos;
+
+        re[l] = re[j] - tre;
+        im[l] = im[j] - tim;
+        re[j] += tre;
+        im[j] += tim;
+      }
+    }
+  }
+}
+
+function drawWaveform(canvas, data, color = "#7dd3fc") {
+  const ctx = canvas.getContext("2d");
+  const w = canvas.width;
+  const h = canvas.height;
+  ctx.clearRect(0, 0, w, h);
+  ctx.fillStyle = "#0b1020";
+  ctx.fillRect(0, 0, w, h);
+
+  if (!data || data.length === 0) return;
+
+  ctx.strokeStyle = "#1f2937";
+  ctx.beginPath();
+  ctx.moveTo(0, h / 2);
+  ctx.lineTo(w, h / 2);
+  ctx.stroke();
+
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+
+  const step = Math.max(1, Math.floor(data.length / w));
+  for (let x = 0; x < w; x++) {
+    const idx = x * step;
+    if (idx >= data.length) break;
+    const y = h / 2 - data[idx] * (h * 0.42);
+    if (x === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  }
+  ctx.stroke();
+}
+
+function drawSpectrogram(canvas, data) {
+  const ctx = canvas.getContext("2d");
+  const w = canvas.width;
+  const h = canvas.height;
+  ctx.clearRect(0, 0, w, h);
+  ctx.fillStyle = "#050816";
+  ctx.fillRect(0, 0, w, h);
+
+  const fftSize = 1024;
+  const hop = 256;
+  const freqBins = fftSize / 2;
+  const frames = Math.max(1, Math.floor((data.length - fftSize) / hop));
+  const window = new Float32Array(fftSize);
+  for (let i = 0; i < fftSize; i++) {
+    window[i] = 0.5 - 0.5 * Math.cos(2 * Math.PI * i / (fftSize - 1));
+  }
+
+  const columns = Math.min(w, frames);
+  const pixelsPerFrame = w / Math.max(1, columns);
+
+  for (let frame = 0; frame < columns; frame++) {
+    const start = frame * hop;
+    const re = new Float32Array(fftSize);
+    const im = new Float32Array(fftSize);
+
+    for (let n = 0; n < fftSize; n++) {
+      re[n] = (data[start + n] || 0) * window[n];
+      im[n] = 0;
+    }
+
+    fftRadix2(re, im);
+
+    for (let bin = 0; bin < freqBins; bin++) {
+      const mag = Math.sqrt(re[bin] * re[bin] + im[bin] * im[bin]);
+      const intensity = Math.max(0, Math.min(1, (dB(mag) + 90) / 90));
+      const y = h - Math.floor((bin / freqBins) * h);
+      ctx.fillStyle = spectrogramColor(intensity);
+      ctx.fillRect(frame * pixelsPerFrame, y, Math.ceil(pixelsPerFrame), 1);
+    }
+  }
+}
+
+function setCompareIndicator(text, state = "idle") {
+  if (!compareIndicator) return;
+  const label = compareIndicator.querySelector(".compare-label");
+  if (label) label.textContent = text;
+  compareIndicator.className = `compare-badge ${state}`;
+}
+
+function setStatus(text, ok = true) {
+  statusText.textContent = text;
+  statusText.className = ok ? "status good" : "status bad";
+}
+
+function writeLog(text) {
+  log.textContent = text;
+}
+
+function updateRangeLabels() {
+  kValue.textContent = Number(kRange.value).toFixed(2);
+  snValue.textContent = Number(snRange.value).toFixed(2);
+  bnValue.textContent = Number(bnRange.value).toFixed(2);
+  outputGainValue.textContent = Number(outputGain.value).toFixed(2);
+}
+
+function ensureAudioContext() {
+  if (!audioContext) {
+    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+  }
+  return audioContext;
+}
+
+function sanitizeFileName(name) {
+  return String(name)
+    .replace(/\.[^/.]+$/, "")
+    .replace(/[^\w\-]+/g, "_")
+    .replace(/_+/g, "_")
+    .replace(/^_+|_+$/g, "");
+}
+
+function getExportFileName() {
+  return `${originalFileName || "astronaut_processed"}_astronaut.wav`;
+}
+
+function buildSignature() {
+  if (!originalBuffer) return "";
+  return [
+    originalBuffer.sampleRate,
+    originalBuffer.length,
+    originalBuffer.numberOfChannels,
+    modelSelect.value,
+    typeSelect.value,
+    channelMode.value,
+    kRange.value,
+    snRange.value,
+    bnRange.value,
+    outputGain.value
+  ].join("|");
+}
+
+function loadModelParams() {
+  if (!originalBuffer) {
+    modelParams.textContent = "Select a model to see parameters.";
+    return;
+  }
+
+  const fs = originalBuffer.sampleRate;
+  const model = Number(modelSelect.value);
+  const meta = getModelConfig(model, fs);
+  modelParams.textContent = [
+    `Model: ${meta.name}`,
+    `Sample rate: ${fs} Hz`,
+    `Channels: ${originalBuffer.numberOfChannels}`,
+    ...meta.description
+  ].join("\n");
+}
+
+function updateLiveMetrics() {
+  if (!originalBuffer) return;
+
+  const fs = originalBuffer.sampleRate;
+  const mode = channelMode.value;
+  const model = Number(modelSelect.value);
+  const type = Number(typeSelect.value);
+  const k = Number(kRange.value);
+  const sn = Number(snRange.value);
+  const bn = Number(bnRange.value);
+  const gain = Number(outputGain.value);
+
+  const original = audioBufferToMonoFloat32(originalBuffer);
+  const processed = estimateProcessedPreview(original, fs, model, type, k, sn, bn, gain, mode);
+
+  origRmsEl.textContent = rms(original).toFixed(5);
+  origPeakEl.textContent = peak(original).toFixed(5);
+  procRmsEl.textContent = rms(processed).toFixed(5);
+  procPeakEl.textContent = peak(processed).toFixed(5);
+}
+
+function scheduleAutoProcess() {
+  if (!originalBuffer) return;
+
+  const signature = buildSignature();
+  if (signature === lastProcessedSignature) return;
+
+  clearTimeout(autoProcessTimer);
+  autoProcessTimer = setTimeout(() => {
+    processCurrentAudio({ silent: true, autoDownload: true });
+  }, 350);
+}
+
+async function decodeFile(file) {
+  const ctx = ensureAudioContext();
+  const arrayBuffer = await file.arrayBuffer();
+  return await ctx.decodeAudioData(arrayBuffer);
+}
+
+function audioBufferToMonoFloat32(audioBuffer) {
+  const channels = audioBuffer.numberOfChannels;
+  const len = audioBuffer.length;
+  const out = new Float32Array(len);
+
+  for (let ch = 0; ch < channels; ch++) {
+    const data = audioBuffer.getChannelData(ch);
+    for (let i = 0; i < len; i++) out[i] += data[i] / channels;
+  }
+
+  return out;
+}
+
+function audioBufferToChannels(audioBuffer) {
+  const channels = [];
+  for (let ch = 0; ch < audioBuffer.numberOfChannels; ch++) {
+    channels.push(new Float32Array(audioBuffer.getChannelData(ch)));
+  }
+  return channels;
+}
+
+function createBufferFromChannels(audioContext, sampleRate, channels) {
+  const buffer = audioContext.createBuffer(channels.length, channels[0].length, sampleRate);
+  for (let ch = 0; ch < channels.length; ch++) buffer.copyToChannel(channels[ch], ch);
+  return buffer;
+}
+
+function estimateProcessedPreview(original, fs, model, type, k, sn, bn, gain, mode) {
+  const previewLen = Math.min(original.length, 4096);
+  const x = original.slice(0, previewLen);
+  const out = processMonophonic(x, fs, model, type, k, sn, bn);
+  const scaled = new Float32Array(out.length);
+
+  for (let i = 0; i < out.length; i++) {
+    scaled[i] = clamp(out[i] * gain, -1, 1);
+  }
+
+  return scaled;
+}
+
+function autoExportProcessedWav() {
+  if (!processedUrl) return;
+  const a = document.createElement("a");
+  a.href = processedUrl;
+  a.download = getExportFileName();
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+}
+
+function processCurrentAudio({ silent = false, autoDownload = true } = {}) {
+  if (!originalBuffer) {
+    if (!silent) setStatus("Load an audio file first.", false);
+    return null;
+  }
+
+  const ctx = ensureAudioContext();
+  const fs = originalBuffer.sampleRate;
+  const model = Number(modelSelect.value);
+  const type = Number(typeSelect.value);
+  const k = Number(kRange.value);
+  const sn = Number(snRange.value);
+  const bn = Number(bnRange.value);
+  const gain = Number(outputGain.value);
+  const mode = channelMode.value;
+
+  if (!silent) setStatus("Processing...");
+
+  writeLog(
+    [
+      `Sample rate: ${fs} Hz`,
+      `Channels: ${originalBuffer.numberOfChannels}`,
+      `Mode: ${mode}`,
+      `Model: ${model === 1 ? "Mercury" : "Apollo"}`,
+      `Type: ${type}`,
+      `k: ${k.toFixed(2)}`,
+      `sn: ${sn.toFixed(2)}`,
+      `bn: ${bn.toFixed(2)}`,
+      `Output gain: ${gain.toFixed(2)}`
+    ].join("\n")
+  );
+
+  let processed;
+  let displayOriginal;
+  let displayProcessed;
+
+  if (mode === "stereo" && originalBuffer.numberOfChannels >= 2) {
+    const [left, right] = audioBufferToChannels(originalBuffer);
+    const stereoOut = processStereo(left, right, fs, model, type, k, sn, bn);
+
+    const leftScaled = new Float32Array(stereoOut.left.length);
+    const rightScaled = new Float32Array(stereoOut.right.length);
+
+    for (let i = 0; i < stereoOut.left.length; i++) {
+      leftScaled[i] = clamp(stereoOut.left[i] * gain, -1, 1);
+      rightScaled[i] = clamp(stereoOut.right[i] * gain, -1, 1);
+    }
+
+    processed = createBufferFromChannels(ctx, fs, [leftScaled, rightScaled]);
+    displayOriginal = audioBufferToMonoFloat32(originalBuffer);
+    displayProcessed = audioBufferToMonoFloat32(processed);
+  } else {
+    const input = audioBufferToMonoFloat32(originalBuffer);
+    const out = processMonophonic(input, fs, model, type, k, sn, bn);
+    const scaled = new Float32Array(out.length);
+
+    for (let i = 0; i < out.length; i++) {
+      scaled[i] = clamp(out[i] * gain, -1, 1);
+    }
+
+    processed = ctx.createBuffer(1, scaled.length, fs);
+    processed.copyToChannel(scaled, 0);
+
+    displayOriginal = input;
+    displayProcessed = scaled;
+  }
+
+  processedBuffer = processed;
+  lastProcessedSignature = buildSignature();
+
+  if (processedUrl) URL.revokeObjectURL(processedUrl);
+  processedUrl = URL.createObjectURL(audioBufferToWavBlob(processedBuffer));
+
+  drawWaveform(waveOriginal, displayOriginal, "#7dd3fc");
+  drawWaveform(waveProcessed, displayProcessed, "#f9a8d4");
+  drawSpectrogram(specOriginal, displayOriginal);
+  drawSpectrogram(specProcessed, displayProcessed);
+
+  origRmsEl.textContent = rms(displayOriginal).toFixed(5);
+  procRmsEl.textContent = rms(displayProcessed).toFixed(5);
+  origPeakEl.textContent = peak(displayOriginal).toFixed(5);
+  procPeakEl.textContent = peak(displayProcessed).toFixed(5);
+
+  if (!silent) {
+    setStatus("Processing complete. WAV created automatically.", true);
+  }
+
+  if (autoDownload && !silent && processedUrl) {
+    autoExportProcessedWav();
+  }
+
+  return processedBuffer;
+}
+
+async function playBuffer(buffer) {
+  if (!buffer) return;
+  const ctx = ensureAudioContext();
+  if (ctx.state === "suspended") await ctx.resume();
+
+  const source = ctx.createBufferSource();
+  source.buffer = buffer;
+  source.connect(ctx.destination);
+  source.start();
+}
+
+function downloadProcessedWav() {
+  if (!processedUrl) {
+    setStatus("Process the audio first before downloading.", false);
+    return;
+  }
+
+  const a = document.createElement("a");
+  a.href = processedUrl;
+  a.download = getExportFileName();
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+}
+
+function startCompareMode() {
+  if (!originalBuffer || !processedBuffer) {
+    setStatus("Process the audio first before comparing.", false);
+    setCompareIndicator("Orig / Proc: unavailable", "error");
+    return;
+  }
+
+  if (compareTimer) {
+    clearInterval(compareTimer);
+    compareTimer = null;
+    compareBtn.textContent = "Compare";
+    setCompareIndicator("Orig / Proc: stopped", "paused");
+    setStatus("Compare mode stopped.", true);
+    return;
+  }
+
+  compareBtn.textContent = "Stop compare";
+  setCompareIndicator("Orig / Proc: running", "idle");
+  setStatus("Compare mode running: original and processed audio alternate.", true);
+
+  const intervalMs = 2200;
+  compareTimer = setInterval(async () => {
+    if (!originalBuffer || !processedBuffer) return;
+
+    const isOriginal = compareState % 2 === 0;
+    const buffer = isOriginal ? originalBuffer : processedBuffer;
+    compareState++;
+
+    setCompareIndicator(isOriginal ? "Orig" : "Proc", isOriginal ? "active-original" : "active-processed");
+    await playBuffer(buffer);
+  }, intervalMs);
+}
+
+fileInput.addEventListener("change", async () => {
+  const file = fileInput.files?.[0];
+  if (!file) return;
+
+  try {
+    originalFileName = sanitizeFileName(file.name) || "astronaut_processed";
+    originalBuffer = await decodeFile(file);
+    processedBuffer = null;
+    lastProcessedSignature = "";
+
+    if (originalUrl) URL.revokeObjectURL(originalUrl);
+    originalUrl = URL.createObjectURL(file);
+    player.src = originalUrl;
+
+    const mono = audioBufferToMonoFloat32(originalBuffer);
+    drawWaveform(waveOriginal, mono, "#7dd3fc");
+    drawWaveform(waveProcessed, mono, "#f9a8d4");
+    drawSpectrogram(specOriginal, mono);
+    drawSpectrogram(specProcessed, mono);
+
+    origRmsEl.textContent = rms(mono).toFixed(5);
+    origPeakEl.textContent = peak(mono).toFixed(5);
+    procRmsEl.textContent = "—";
+    procPeakEl.textContent = "—";
+
+    infoText.textContent = `Loaded: ${file.name} (${originalBuffer.duration.toFixed(2)} s, ${originalBuffer.sampleRate} Hz, ${originalBuffer.numberOfChannels} ch)`;
+    setStatus("Audio file loaded.", true);
+    setCompareIndicator("Orig / Proc: not running", "idle");
+    writeLog(`File: ${file.name}\nDuration: ${originalBuffer.duration.toFixed(2)} s\nSample rate: ${originalBuffer.sampleRate} Hz\nChannels: ${originalBuffer.numberOfChannels}`);
+
+    loadModelParams();
+    updateLiveMetrics();
+
+    processCurrentAudio({ silent: true, autoDownload: true });
+  } catch (err) {
+    console.error(err);
+    setStatus("File processing failed.", false);
+    setCompareIndicator("Orig / Proc: error", "error");
+    writeLog(String(err));
+  }
+});
+
+processBtn.addEventListener("click", () => {
+  processCurrentAudio({ silent: false, autoDownload: true });
+  loadModelParams();
+});
+
+playOriginalBtn.addEventListener("click", async () => {
+  if (!originalBuffer) return setStatus("No original audio loaded.", false);
+  await playBuffer(originalBuffer);
+});
+
+playProcessedBtn.addEventListener("click", async () => {
+  if (!processedBuffer) processCurrentAudio({ silent: true, autoDownload: false });
+  if (!processedBuffer) return;
+  await playBuffer(processedBuffer);
+});
+
+compareBtn.addEventListener("click", startCompareMode);
+downloadBtn.addEventListener("click", downloadProcessedWav);
+
+[kRange, snRange, bnRange, outputGain, modelSelect, typeSelect, channelMode].forEach(el => {
+  el.addEventListener("input", () => {
+    updateRangeLabels();
+    loadModelParams();
+    updateLiveMetrics();
+    scheduleAutoProcess();
+  });
+});
+
+updateRangeLabels();
+loadModelParams();
+updateLiveMetrics();
+setCompareIndicator("Orig / Proc: not running", "idle");
+</script>
+
+
+
+</body>
+</html>
+
+
+
+Kommentti päättyy: -->
+
+
