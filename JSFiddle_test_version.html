@@ -1,0 +1,252 @@
+// HTML 
+
+<div class="app">
+  <h2>Astronaut Voice (JSFiddle Safe)</h2>
+
+  <input id="fileInput" type="file" accept="audio/*"><br><br>
+
+  k: <input id="k" type="range" min="0" max="1" step="0.01" value="0.3"><br>
+  sn: <input id="sn" type="range" min="0" max="1" step="0.01" value="0.7"><br>
+  bn: <input id="bn" type="range" min="0" max="1" step="0.01" value="0.2"><br>
+  gain: <input id="gain" type="range" min="0.1" max="2" step="0.01" value="1"><br><br>
+
+  <button id="process">Process</button>
+  <button id="play">Play</button>
+  <button id="compare">Compare</button>
+  <button id="download">Download</button>
+
+  <br><br>
+  <canvas id="wave" width="800" height="150"></canvas>
+  <canvas id="spec" width="800" height="200"></canvas>
+
+  <audio id="player" controls></audio>
+  <pre id="log">Ready</pre>
+</div>
+
+
+// JS
+
+let ctx;
+let original, processed;
+let processedUrl;
+let compareTimer = null;
+
+const fileInput = document.getElementById("fileInput");
+const log = document.getElementById("log");
+const player = document.getElementById("player");
+
+const kEl = document.getElementById("k");
+const snEl = document.getElementById("sn");
+const bnEl = document.getElementById("bn");
+const gainEl = document.getElementById("gain");
+
+async function audioCtx() {
+  if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)();
+  if (ctx.state === "suspended") await ctx.resume();
+  return ctx;
+}
+
+function toMono(buf) {
+  const out = new Float32Array(buf.length);
+  for (let ch = 0; ch < buf.numberOfChannels; ch++) {
+    const d = buf.getChannelData(ch);
+    for (let i = 0; i < buf.length; i++) out[i] += d[i] / buf.numberOfChannels;
+  }
+  return out;
+}
+
+// --- DSP ---
+function distort(x, k) {
+  const out = new Float32Array(x.length);
+  const kk = k * 50 + 1;
+  for (let i = 0; i < x.length; i++) {
+    out[i] = Math.atan(kk * x[i]) / Math.atan(kk);
+  }
+  return out;
+}
+
+function noise(len, amt) {
+  const n = new Float32Array(len);
+  for (let i = 0; i < len; i++) n[i] = (Math.random() * 2 - 1) * amt;
+  return n;
+}
+
+function processSignal(x) {
+  const k = +kEl.value;
+  const sn = +snEl.value;
+  const bn = +bnEl.value;
+  const gain = +gainEl.value;
+
+  let y = distort(x, k);
+
+  const n1 = noise(x.length, sn);
+  const n2 = noise(x.length, bn);
+
+  for (let i = 0; i < y.length; i++) {
+    y[i] = (y[i] + n1[i] + n2[i]) * gain;
+  }
+
+  return y;
+}
+
+// --- WAV ---
+function toWav(buf) {
+  const ch = buf.numberOfChannels;
+  const len = buf.length;
+  const sr = buf.sampleRate;
+
+  const ab = new ArrayBuffer(44 + len * ch * 2);
+  const dv = new DataView(ab);
+
+  let o = 0;
+  function w(s){ for(let i=0;i<s.length;i++) dv.setUint8(o++,s.charCodeAt(i)); }
+
+  w("RIFF"); dv.setUint32(o,36+len*ch*2,true); o+=4;
+  w("WAVEfmt "); dv.setUint32(o,16,true); o+=4;
+  dv.setUint16(o,1,true); o+=2;
+  dv.setUint16(o,ch,true); o+=2;
+  dv.setUint32(o,sr,true); o+=4;
+  dv.setUint32(o,sr*ch*2,true); o+=4;
+  dv.setUint16(o,ch*2,true); o+=2;
+  dv.setUint16(o,16,true); o+=2;
+  w("data"); dv.setUint32(o,len*ch*2,true); o+=4;
+
+  for(let i=0;i<len;i++){
+    for(let c=0;c<ch;c++){
+      let s = buf.getChannelData(c)[i];
+      s = Math.max(-1,Math.min(1,s));
+      dv.setInt16(o, s*32767, true);
+      o+=2;
+    }
+  }
+
+  return new Blob([ab], {type:"audio/wav"});
+}
+
+// --- DRAW ---
+function drawWave(data) {
+  const c = document.getElementById("wave");
+  const ctx2 = c.getContext("2d");
+
+  ctx2.clearRect(0,0,c.width,c.height);
+
+  const step = Math.floor(data.length / c.width);
+  ctx2.beginPath();
+
+  for (let i = 0; i < c.width; i++) {
+    const y = c.height/2 - data[i*step]*60;
+    i===0 ? ctx2.moveTo(i,y) : ctx2.lineTo(i,y);
+  }
+  ctx2.stroke();
+}
+
+// --- SIMPLE SPECTRO ---
+function drawSpec(data) {
+  const c = document.getElementById("spec");
+  const ctx2 = c.getContext("2d");
+
+  ctx2.fillStyle = "black";
+  ctx2.fillRect(0,0,c.width,c.height);
+
+  const size = 256;
+  if (data.length < size) return;
+
+  for (let x = 0; x < c.width; x++) {
+    const start = Math.floor(x * data.length / c.width);
+    let sum = 0;
+
+    for (let i = 0; i < size; i++) {
+      const v = data[start+i] || 0;
+      sum += Math.abs(v);
+    }
+
+    const v = sum / size;
+    const y = c.height * (1 - v);
+
+    ctx2.fillStyle = `rgb(${v*255},${v*100},255)`;
+    ctx2.fillRect(x, y, 1, c.height);
+  }
+}
+
+// --- EVENTS ---
+fileInput.onchange = async e => {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  const c = await audioCtx();
+  const buf = await file.arrayBuffer();
+
+  original = await new Promise((res,rej)=>{
+    c.decodeAudioData(buf,res,rej);
+  });
+
+  player.src = URL.createObjectURL(file);
+
+  const mono = toMono(original);
+  drawWave(mono);
+  drawSpec(mono);
+
+  log.textContent = "Loaded";
+};
+
+document.getElementById("process").onclick = async () => {
+  if (!original) return;
+
+  const c = await audioCtx();
+
+  const mono = toMono(original);
+  const y = processSignal(mono);
+
+  const b = c.createBuffer(1, y.length, original.sampleRate);
+  b.copyToChannel(y,0);
+
+  processed = b;
+
+  drawWave(y);
+  drawSpec(y);
+
+  if (processedUrl) URL.revokeObjectURL(processedUrl);
+  processedUrl = URL.createObjectURL(toWav(b));
+
+  log.textContent = "Processed";
+};
+
+document.getElementById("play").onclick = async () => {
+  if (!processed) return;
+  const c = await audioCtx();
+
+  const src = c.createBufferSource();
+  src.buffer = processed;
+  src.connect(c.destination);
+  src.start();
+};
+
+document.getElementById("compare").onclick = () => {
+  if (!original || !processed) return;
+
+  if (compareTimer) {
+    clearInterval(compareTimer);
+    compareTimer = null;
+    log.textContent = "Compare stopped";
+    return;
+  }
+
+  let state = 0;
+  compareTimer = setInterval(async () => {
+    const c = await audioCtx();
+    const src = c.createBufferSource();
+    src.buffer = (state++ % 2 === 0) ? original : processed;
+    src.connect(c.destination);
+    src.start();
+  }, 2000);
+
+  log.textContent = "Compare running";
+};
+
+document.getElementById("download").onclick = () => {
+  if (!processedUrl) return;
+  const a = document.createElement("a");
+  a.href = processedUrl;
+  a.download = "astronaut.wav";
+  a.click();
+};
